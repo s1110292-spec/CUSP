@@ -23,11 +23,12 @@ const AGE=["18–29","30–44","45–59","60–64","65–74","75+"],GEN=["女","
 const RL={owner:"擁有者",researcher:"研究人員",case_manager:"個案管理師",pending:"待核准"};
 let me=null,rows=[],staff=[],tab="data",site="";
 const nm=(a,i)=>a[i]??"—",top3=r=>Object.entries(r.scores).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${(DM.find(d=>d[0]===k)||[,k])[1]} ${v}`).join("、");
-function loginView(msg=""){$("#app").innerHTML=`<div class="card"><h2>🌿 CUSP 後台登入</h2><p><input id="em" type="email" placeholder="Email" autocomplete="username"></p><p><input id="pw" type="password" placeholder="密碼（至少 8 碼）" autocomplete="current-password"></p><p class="err" id="er">${esc(msg)}</p><button onclick="auth(0)">登入</button> <button class="g" onclick="auth(1)">申請帳號</button><p class="mu">新帳號需由擁有者核准角色後才能看到資料。</p></div>`}
+function loginView(msg=""){$("#app").innerHTML=`<div class="card"><h2>🌿 CUSP 後台登入</h2><p><input id="em" type="email" placeholder="Email" autocomplete="username"></p><p><input id="pw" type="password" placeholder="密碼（至少 8 碼）" autocomplete="current-password"></p><p class="err" id="er">${esc(msg)}</p><button onclick="auth(0)">登入</button> <button class="g" onclick="auth(1)">申請帳號</button><p class="mu">第一次使用請先按「申請帳號」。申請後需由擁有者核准角色，才能看到資料。</p></div>`}
 async function auth(up){const email=$("#em").value.trim(),password=$("#pw").value,er=$("#er");er.textContent="";
- const {error}=up?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
- if(error){er.textContent=error.message;return}
- if(up)er.textContent="已送出申請；若需信箱驗證請先確認，再通知擁有者核准，之後登入。";else boot()}
+  const {data,error}=up?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
+ if(error){er.className="err";er.textContent=error.message;return}
+ if(up&&!data.session){er.className="mu";er.textContent="已送出申請，請等候擁有者核准角色後再登入。";return}
+ boot()}
 async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session)return loginView();
  const {data}=await sb.from("staff").select("*").eq("user_id",session.user.id).maybeSingle();me=data;
  if(!me||me.role==="pending"){$("#app").innerHTML=`<div class="card"><h2>等待核准</h2><p>帳號 ${esc(session.user.email)} 尚未被授予角色，請聯絡擁有者。</p><button class="g" onclick="out()">登出</button></div>`;return}
