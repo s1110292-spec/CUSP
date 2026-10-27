@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUSP 後台</title>
+<style>
+:root{--bg:#f6f8f5;--card:#fff;--tx:#1f2a24;--mu:#5d6b63;--ln:#dde5df;--ac:#2f7d5b;--ac2:#e8f3ed;--wa:#c2410c;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#141a17;--card:#1d2621;--tx:#e8efe9;--mu:#9fb0a5;--ln:#2e3a33;--ac:#5fc496;--ac2:#22342b;--wa:#fb923c;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+.w{max-width:900px;margin:0 auto;padding:18px 16px 60px}.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:16px;margin:12px 0}
+input,select{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8px;background:var(--card);color:var(--tx);max-width:100%}
+button{font:inherit;border:0;border-radius:8px;padding:8px 16px;background:var(--ac);color:#fff;cursor:pointer}button.g{background:transparent;color:var(--mu);border:1px solid var(--ln)}
+.mu{color:var(--mu);font-size:.9rem}.err{color:var(--wa)}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.ov{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{padding:6px;border-top:1px solid var(--ln);text-align:left}
+.sc{display:grid;grid-template-columns:8em 1fr 3em;gap:8px;align-items:center;font-size:.9rem}.t{height:10px;background:var(--ln);border-radius:9px;overflow:hidden}.t i{display:block;height:100%;background:var(--ac)}
+details{border-top:1px solid var(--ln);padding:6px 0}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script></head>
+<body><div class="w" id="app"></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sb=supabase.createClient(CUSP_CONFIG.url,CUSP_CONFIG.key);
+const DM=[["lone","孤獨與社會孤立"],["ment","心理健康支持"],["life","活動量與日常習慣"],["self","自理與生理篩檢"],["econ","經濟穩定"],["edu","教育與健康識能"],["acc","醫療可近性"],["nei","鄰里與建成環境"],["com","社會與社區支持"]];
+const AGE=["18–29","30–44","45–59","60–64","65–74","75+"],GEN=["女","男","其他"],INC=["寬裕","夠用","吃緊","困難"],EDU=["國小以下","國中","高中職","專科/大學","研究所+"],EMP=["工作","退休","家務/照顧","待業","因病無法工作"],LIV=["與家人同住","僅與配偶","獨居","機構/其他"],PERS=["大團體","小團體","安靜獨處"];
+const RL={owner:"擁有者",researcher:"研究人員",case_manager:"個案管理師",pending:"待核准"};
+let me=null,rows=[],staff=[],tab="data",site="";
+const nm=(a,i)=>a[i]??"—",top3=r=>Object.entries(r.scores).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${(DM.find(d=>d[0]===k)||[,k])[1]} ${v}`).join("、");
+function loginView(msg=""){$("#app").innerHTML=`<div class="card"><h2>🌿 CUSP 後台登入</h2><p><input id="em" type="email" placeholder="Email" autocomplete="username"></p><p><input id="pw" type="password" placeholder="密碼（至少 8 碼）" autocomplete="current-password"></p><p class="err" id="er">${esc(msg)}</p><button onclick="auth(0)">登入</button> <button class="g" onclick="auth(1)">申請帳號</button><p class="mu">新帳號需由擁有者核准角色後才能看到資料。</p></div>`}
+async function auth(up){const email=$("#em").value.trim(),password=$("#pw").value,er=$("#er");er.textContent="";
+ const {error}=up?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
+ if(error){er.textContent=error.message;return}
+ if(up)er.textContent="已送出申請；若需信箱驗證請先確認，再通知擁有者核准，之後登入。";else boot()}
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session)return loginView();
+ const {data}=await sb.from("staff").select("*").eq("user_id",session.user.id).maybeSingle();me=data;
+ if(!me||me.role==="pending"){$("#app").innerHTML=`<div class="card"><h2>等待核准</h2><p>帳號 ${esc(session.user.email)} 尚未被授予角色，請聯絡擁有者。</p><button class="g" onclick="out()">登出</button></div>`;return}
+ await load();render()}
+async function out(){await sb.auth.signOut();loginView()}
+async function load(){const r=await sb.from("responses").select("*").order("created_at",{ascending:false}).limit(1000);rows=r.data||[];
+ if(me.role==="owner"){const s=await sb.from("staff").select("*").order("created_at");staff=s.data||[]}}
+function radar(sc){const n=9,cx=230,cy=190,R=120,pt=(i,v)=>{const a=-Math.PI/2+2*Math.PI*i/n;return[cx+R*v/100*Math.cos(a),cy+R*v/100*Math.sin(a)]};
+ let g=[25,50,75,100].map(r=>`<polygon points="${DM.map((_,i)=>pt(i,r)).join(" ")}" fill="none" stroke="var(--ln)"/>`).join("");
+ g+=DM.map((d,i)=>{const[x,y]=pt(i,100),[lx,ly]=pt(i,118),c=Math.cos(-Math.PI/2+2*Math.PI*i/n);return`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--ln)"/><text x="${lx}" y="${ly+4}" font-size="11" fill="var(--tx)" text-anchor="${c>.3?"start":c<-.3?"end":"middle"}">${d[1].slice(0,7)}</text>`}).join("");
+ g+=`<polygon points="${DM.map((d,i)=>pt(i,sc[d[0]])).join(" ")}" fill="var(--ac)" fill-opacity=".3" stroke="var(--ac)" stroke-width="2"/>`;
+ return`<svg viewBox="0 0 460 380" style="width:100%;max-width:520px;display:block;margin:auto">${g}</svg>`}
+function render(){const sites=[...new Set(rows.map(r=>r.site))],v=rows.filter(r=>!site||r.site===site),n=v.length;
+ const avg={},hi={};DM.forEach(([k])=>{avg[k]=n?Math.round(v.reduce((a,r)=>a+(r.scores[k]||0),0)/n):0;hi[k]=v.filter(r=>(r.scores[k]||0)>=50).length});
+ let h=`<div class="row"><h2>📊 CUSP 後台</h2><span class="mu">${esc(me.email)}｜${RL[me.role]}${me.org?"｜"+esc(me.org):""} <button class="g" onclick="out()">登出</button></span></div>
+ <div class="row"><span><button class="${tab=="data"?"":"g"}" onclick="tab='data';render()">填答資料</button> ${me.role==="owner"?`<button class="${tab=="staff"?"":"g"}" onclick="tab='staff';render()">人員管理</button>`:""}</span><span><button class="g" onclick="load().then(render)">重新整理</button> <button onclick="csv()">下載 CSV</button></span></div>`;
+ if(tab==="staff"&&me.role==="owner")h+=`<div class="card ov"><h3>人員管理</h3><table><tr><th>Email</th><th>角色</th><th>負責 site</th><th></th></tr>${staff.map(s=>`<tr><td>${esc(s.email)}</td><td><select id="r_${s.user_id}">${Object.entries(RL).map(([k,t])=>`<option value="${k}" ${s.role===k?"selected":""}>${t}</option>`).join("")}</select></td><td><input id="o_${s.user_id}" value="${esc(s.org)}" size="10" placeholder="site"></td><td>${s.user_id===(me.user_id)?"（自己）":`<button onclick="saveS('${s.user_id}')">儲存</button> <button class="g" onclick="delS('${s.user_id}')">移除</button>`}</td></tr>`).join("")}</table><p class="mu">個案管理師只能看到 site 與其「負責 site」相同的資料；site 來自問卷網址的 ?site=名稱。</p></div>`;
+ else{h+=`<div class="card"><div class="row"><h3>總覽（${n} 份）</h3><select onchange="site=this.value;render()"><option value="">全部 site</option>${sites.map(s=>`<option ${s===site?"selected":""} value="${esc(s)}">${esc(s)||"（未標示）"}</option>`).join("")}</select></div>`;
+  h+=n?radar(avg)+DM.map(([k,t])=>`<div class="sc"><span>${t}</span><div class="t"><i style="width:${avg[k]}%"></i></div><b>${avg[k]}</b></div><div class="mu" style="margin:-2px 0 4px 8.5em">高需求(≥50)：${hi[k]} 人（${Math.round(hi[k]/n*100)}%）</div>`).join(""):`<p class="mu">尚無資料</p>`;
+  h+=`</div><div class="card"><h3>個別紀錄</h3>${v.map(r=>{const p=r.profile||{};return`<details><summary>${new Date(r.created_at).toLocaleString("zh-TW")}｜${nm(AGE,p.age)}｜${nm(GEN,p.gen)}｜${esc(top3(r))}</summary><div class="mu">追蹤碼：${esc(r.track_code)}｜site：${esc(r.site)||"—"}<br>慢性病：${esc((p.chronic||[]).join("、"))}<br>壓力事件：${esc((p.stress||[]).join("、"))}<br>經濟：${nm(INC,p.inc)}｜學歷：${nm(EDU,p.edu)}｜工作：${nm(EMP,p.emp)}｜居住：${nm(LIV,p.liv)}｜偏好：${nm(PERS,p.pers)}｜興趣：${esc((p.interest||[]).join("、"))}</div>${me.role==="owner"?`<button class="g" onclick="del('${r.id}')">刪除</button>`:""}</details>`}).join("")}</div>`}
+ $("#app").innerHTML=h}
+async function saveS(id){const {error}=await sb.from("staff").update({role:$("#r_"+id).value,org:$("#o_"+id).value.trim()}).eq("user_id",id);if(error)alert(error.message);await load();render()}
+async function delS(id){if(!confirm("移除此人員的角色與帳號資料？"))return;const {error}=await sb.from("staff").delete().eq("user_id",id);if(error)alert(error.message);await load();render()}
+async function del(id){if(!confirm("確定刪除這筆紀錄？"))return;const {error}=await sb.from("responses").delete().eq("id",id);if(error)alert(error.message);await load();render()}
+function csv(){const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"',v=rows.filter(r=>!site||r.site===site);
+ const L=[["時間","追蹤碼","site","年齡層","性別","慢性病","壓力事件","經濟","學歷","工作","居住","偏好","興趣",...DM.map(d=>d[1])]].concat(v.map(r=>{const p=r.profile||{};return[r.created_at,r.track_code,r.site,nm(AGE,p.age),nm(GEN,p.gen),(p.chronic||[]).join("；"),(p.stress||[]).join("；"),nm(INC,p.inc),nm(EDU,p.edu),nm(EMP,p.emp),nm(LIV,p.liv),nm(PERS,p.pers),(p.interest||[]).join("；"),...DM.map(d=>r.scores[d[0]])]}));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+L.map(x=>x.map(q).join(",")).join("\n")],{type:"text/csv"}));a.download="cusp_results.csv";a.click()}
+boot();
+</script></body></html>

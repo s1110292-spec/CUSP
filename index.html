@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CUSP 社會處方需求評估</title>
+<script src="config.js"></script>
+<style>
+:root{--bg:#f6f8f5;--card:#fff;--tx:#1f2a24;--mu:#5d6b63;--ln:#dde5df;--ac:#2f7d5b;--ac2:#e8f3ed;--wa:#c2410c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a17;--card:#1d2621;--tx:#e8efe9;--mu:#9bab a1;--mu:#9fb0a5;--ln:#2e3a33;--ac:#5fc496;--ac2:#22342b;--wa:#fb923c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141a17;--card:#1d2621;--tx:#e8efe9;--mu:#9fb0a5;--ln:#2e3a33;--ac:#5fc496;--ac2:#22342b;--wa:#fb923c;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.65 system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.w{max-width:760px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:1.5rem;margin:.2em 0}h2{font-size:1.2rem;margin:.2em 0}h3{font-size:1.05rem;margin:.1em 0}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:18px;margin:14px 0}
+.mu{color:var(--mu);font-size:.9rem}
+.bar{height:6px;background:var(--ln);border-radius:9px;overflow:hidden;margin:6px 0 2px}.bar i{display:block;height:100%;background:var(--ac);transition:width .3s}
+.q{margin:18px 0}.q b{display:block;margin-bottom:8px}
+.o{display:block;border:1px solid var(--ln);border-radius:10px;padding:10px 12px;margin:6px 0;cursor:pointer;background:var(--card)}
+.o:has(input:checked){border-color:var(--ac);background:var(--ac2)}
+.o input{margin-right:8px;accent-color:var(--ac)}
+.row{display:flex;flex-wrap:wrap;gap:8px}.row .o{margin:0;padding:8px 12px}
+select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font:inherit}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:10px 20px;background:var(--ac);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.s{background:var(--ac2);color:var(--ac);border:1px solid var(--ac);padding:6px 14px;font-size:.9rem}
+button.g{background:transparent;color:var(--mu);border:1px solid var(--ln)}
+.nav{display:flex;justify-content:space-between;margin-top:20px;gap:10px}
+.tag{display:inline-block;font-size:.75rem;padding:1px 9px;border-radius:99px;background:var(--ac2);color:var(--ac);margin-right:6px}
+.err{color:var(--wa);font-size:.9rem;min-height:1.2em}
+.sc{display:grid;grid-template-columns:7.5em 1fr 4.5em;gap:8px;align-items:center;font-size:.92rem;margin:5px 0}
+.sc .t{height:10px;background:var(--ln);border-radius:9px;overflow:hidden}.sc .t i{display:block;height:100%}
+.rx{border-left:5px solid var(--ac)}
+.ov{overflow-x:auto}
+.alert{border:1px solid var(--wa);border-radius:12px;padding:12px 14px;color:var(--wa);margin:12px 0}
+@media print{.nav,.noprint{display:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body><div class="w" id="app"></div>
+<script>
+const LV=v=>v<25?"低":v<50?"輕度":v<75?"中度":"高";
+const OPT5=["不需要","稍微需要","中等","很需要","非常迫切"];
+const D=[
+{id:"lone",g:"CUSP 社交情感",n:"孤獨與社會孤立",c:"#8b5cf6",s:["週末突然空出一整天，你通常會？",["約朋友或家人，行程滿滿",0],["有點無聊，但會找事做",1],["大多一個人度過，偶爾覺得寂寞",3],["整天沒跟人說話，感覺與社會脫節",4]],d:"你有多需要更多陪伴或人際連結？"},
+{id:"ment",g:"CUSP 社交情感",n:"心理健康支持",c:"#ec4899",s:["最近一個月遇到不順心的事，你的狀態比較像？",["能調適，睡得還好",0],["煩惱幾天，慢慢過去",1],["常焦慮或心情低落，影響睡眠或食慾",3],["幾乎每天都很疲憊、撐得很辛苦",4]],d:"你有多需要情緒支持或照顧壓力的喘息？"},
+{id:"life",g:"CUSP 生活習慣",n:"活動量與日常習慣",c:"#f59e0b",s:["一個普通的平日，你的活動情形？",["每天活動30分鐘以上，也常學新事物",0],["偶爾運動，一週一兩次",1],["大多坐著或躺著，很少外出",3],["幾乎整天不動，也沒什麼事可做",4]],d:"你有多需要提升活動量或動腦、動手的機會？"},
+{id:"self",g:"CUSP 生活習慣",n:"自理與生理篩檢",c:"#14b8a6",s:["最近是否有：走路變慢、爬樓梯吃力、咬不動食物、嗆咳、體重不明下降？",["都沒有",0],["有一項，偶爾發生",1],["有兩項以上",3],["已影響日常生活，需要他人協助",4]],d:"你有多需要健康功能篩檢（如 ICOPE、MNA 營養）或復健協助？"},
+{id:"econ",g:"SDOH 經濟穩定",n:"經濟穩定",c:"#dc2626",s:["過去三個月，你是否曾因經濟因素而無法獲得足夠的食物或生活必需品？",["從未",0],["偶爾一兩次",1],["經常",3],["幾乎每個月都如此",4]],d:"你有多需要食物、福利或就業方面的協助？"},
+{id:"edu",g:"SDOH 教育品質與機會",n:"教育與健康識能",c:"#2563eb",s:["醫師給你藥單或衛教單張，回家後你通常？",["看得懂並照做",0],["大致懂，偶爾問人",1],["有些看不懂，常靠家人或猜",3],["完全不懂，不知道怎麼照顧自己",4]],d:"你有多需要健康知識或學習課程的協助？"},
+{id:"acc",g:"SDOH 醫療可近性",n:"醫療可近性與品質",c:"#0891b2",s:["身體不舒服時，你是否曾因交通、費用、時間或不知去哪看而延遲就醫？",["從未",0],["偶爾",1],["經常",3],["已長期擱置，沒有就醫",4]],d:"你有多需要交通接送、就醫導航或社區健康服務？"},
+{id:"nei",g:"SDOH 鄰里與建成環境",n:"鄰里與建成環境",c:"#65a30d",s:["你住家附近有安全、走路約10–15分鐘可到的運動或休閒空間嗎？",["有，而且常去",0],["有，但很少去",1],["有，但不安全或不好走（無障礙、照明）",3],["沒有，也很難到達",4]],d:"你有多需要運動、戶外或綠色空間的活動機會？"},
+{id:"com",g:"SDOH 社會與社區脈絡",n:"社會與社區支持",c:"#ea580c",s:["當你感到孤單、焦慮或遇到困難時，有人可以聊或幫忙嗎？",["有好幾位，隨時可以",0],["有一兩位，但不好意思常打擾",1],["很少，多半自己撐",3],["沒有任何人",4]],d:"你有多需要社區活動、支持團體或志工服務？"}
+];
+const CH=["高血壓","糖尿病","心臟病","慢性腎臟病","慢性肺病","癌症","關節/骨質疏鬆","失智/認知退化","憂鬱/焦慮","無慢性病"];
+const ST=[["失業或收入減少",["econ"]],["債務或生活開銷壓力",["econ"]],["親友離世／喪偶",["lone","ment","com"]],["長期照顧家人",["ment","com"]],["新診斷疾病或住院",["acc","self"]],["搬家或環境改變",["nei","com"]],["與家人／朋友關係衝突",["com","ment"]],["受到歧視或霸凌",["com","ment"]],["無明顯壓力事件",[]]];
+const IN=["運動","藝文","園藝自然","烹飪","學習","志工","音樂","手作"];
+const A=[
+["lone","社區據點","社區關懷據點（共餐與健康促進）","可參加共餐、健康體操、桌遊與聊天，是重建日常人際連結最溫和的起點。","1966","社區關懷據點","g,s,烹飪,學習"],
+["lone","電話關懷","志工電話問安／到府關懷","由志工定期電話或到訪問候，適合不方便外出或偏好安靜互動者。","1966","","q,h"],
+["lone","興趣社團","樂齡學習中心／社區大學興趣班","依興趣選擇書法、合唱、手作等課程，在共同興趣中自然結交朋友。","","樂齡學習中心","s,g,藝文,音樂,手作,學習"],
+["ment","心理諮詢","安心專線 1925（24 小時）","免費、匿名的心理諮詢，情緒低落或壓力大時可隨時撥打傾訴。","1925","","q,h"],
+["ment","心理衛生","社區心理衛生中心／心理諮商所","提供心理諮商、壓力調適與照顧者喘息資訊，可預約面談。","1925","社區心理衛生中心","q,s"],
+["ment","身心活動","正念、瑜伽或藝術療癒工作坊","透過呼吸、伸展、繪畫或手作紓解壓力，適合想自我照顧的人。","","瑜伽 正念 教室","s,q,藝文,運動,手作,音樂"],
+["life","運動課程","樂齡／社區運動班（體適能、太極）","由教練帶領的低強度課程，循序漸進提升活動量。","","運動中心","g,s,運動"],
+["life","認知促進","認知促進團體（桌遊、手作、懷舊）","結合動腦、動手與社交，有助維持認知功能。","1966","失智症 共同照護中心","s,g,學習,手作,藝文"],
+["life","居家活動","居家活動小計畫","每天 10 分鐘伸展、散步與一件小任務（種花、料理），建立固定節奏。","","","q,h,園藝自然,烹飪"],
+["self","功能篩檢","ICOPE 長者功能評估／MNA 營養篩檢","檢視行動、營養、視聽、認知與情緒，及早發現衰弱並轉介。","1966","衛生所","q,s"],
+["self","口腔營養","牙科咀嚼吞嚥評估與營養師諮詢","咀嚼吞嚥困難或體重下降時，調整食物質地與營養。","","牙科診所 長者口腔","q"],
+["self","復健輔具","復健運動與輔具、居家無障礙評估","可透過長照服務申請復健與輔具評估。","1966","復健科","q,s,h"],
+["econ","食物支持","食物銀行／實物給付","提供乾糧、生鮮或餐食，協助度過經濟吃緊時期。","1957","食物銀行","q,s,g,h"],
+["econ","福利諮詢","社會福利服務中心","評估低收、急難救助、租屋與津貼資格，社工可陪同申請。","1957","社會福利服務中心","q,s,h"],
+["econ","就業協助","公共就業服務站／職業訓練","職缺媒合、職涯諮詢與職訓，協助穩定收入。","0800-777-888","公共就業服務站","s,q,學習"],
+["edu","健康識能","健康識能與慢性病自我管理課程","學習看懂藥單、檢查數值，練習「問對問題」。","","衛生所 健康講座","s,g,學習"],
+["edu","社區教育","圖書館／社區大學課程","樂齡識字、數位與生活課程，可請志工陪讀。","","公共圖書館","s,q,學習,藝文"],
+["acc","交通接送","長照交通接送與就醫陪同","不便前往醫院者，可申請交通接送與就醫陪同。","1966","","q,h"],
+["acc","就醫導航","衛生所／社區健康服務與就醫諮詢","協助找科別、轉診與費用補助資訊。","0800-030-598","衛生所","q,s"],
+["nei","社區健走","社區健走團","固定時間在公園或河濱步道集合健走，兼顧運動與社交。","","公園 健走","g,s,運動,園藝自然"],
+["nei","綠色處方","綠色處方箋：步道、森林、社區園圃","在自然中散步、園藝或賞鳥，有助減壓與身心健康。","","步道 森林 公園","q,s,園藝自然,運動"],
+["nei","運動團體","社區運動團體（羽球、太極、土風舞）","加入固定團體，增加活動量與穩定的夥伴。","","運動中心","g,s,運動,音樂"],
+["com","支持團體","同儕支持團體（照顧者／慢性病／喪親）","與有相似經驗的人傾聽與分享資源，不再獨自面對。","1925","支持團體","s,q"],
+["com","社區活動","里民／社區活動中心活動","從共餐、節慶、手作活動開始，逐步擴展支持網絡。","","社區活動中心","g,s,烹飪,手作,音樂"],
+["com","志工服務","志願服務（關懷、導覽、陪伴）","透過付出建立歸屬感與自我價值。","1957","志願服務","g,s,志工"]
+];
+const ST_STEPS=[{k:"intro"},{k:"base"},{k:"stress"},...D.map(d=>({k:"dom",d})),{k:"pref"},{k:"res"}];
+let step=0,P={chronic:[],stress:[],interest:[]},ans={};
+const $=s=>document.querySelector(s);
+const radio=(name,list,cur)=>list.map((t,i)=>`<label class="o"><input type="radio" name="${name}" value="${i}" ${cur==i?"checked":""}>${t}</label>`).join("");
+const chk=(name,list,cur)=>`<div class="row">${list.map(t=>`<label class="o"><input type="checkbox" data-n="${name}" value="${t}" ${cur.includes(t)?"checked":""}>${t}</label>`).join("")}</div>`;
+function sel(id,list,cur){return `<select id="${id}"><option value="">請選擇</option>${list.map((t,i)=>`<option value="${i}" ${cur==i&&cur!==undefined?"selected":""}>${t}</option>`).join("")}</select>`}
+const AGE=["18–29","30–44","45–59","60–64","65–74","75 歲以上"],GEN=["女","男","其他／不願透露"],INC=["寬裕，有儲蓄","大致夠用","吃緊，需要節省","困難，常入不敷出"],EDU=["國小以下","國中","高中職","專科／大學","研究所以上"],EMP=["全職／兼職工作","退休","家務／照顧家人","待業／找工作中","因病或身心狀況無法工作"],LIV=["與家人同住","僅與配偶同住","獨居","住機構或其他"];
+function view(){
+ const s=ST_STEPS[step],n=ST_STEPS.length-1,pct=Math.round(step/n*100);
+ let h=`<div class="noprint"><h1>🌿 社會處方需求評估</h1><div class="mu">依 CUSP 架構與 Healthy People 2030 五大 SDOH 領域設計</div><div class="bar"><i style="width:${pct}%"></i></div><div class="mu">${s.k==="res"?"完成":`第 ${step+1} / ${n} 步`}</div></div>`;
+ if(s.k==="intro")h+=`<div class="card"><h2>歡迎</h2><p>這份問卷約需 8–10 分鐘，協助你找出目前最需要的支持，並產生專屬的「數位社會處方箋」，推薦適合你個性與興趣的社區活動。</p><p class="mu">本工具為健康促進與資源媒合用途，不是診斷或醫療建議。</p><div class="card" style="margin:10px 0"><b>隱私與同意</b><p class="mu" style="margin:.3em 0">填答完成後，答案與分數會以匿名方式（不含姓名、電話、Email）傳送至主辦單位的後台，用於了解社區需求與改善服務。你可以不填任何不想回答的資訊而離開頁面。如需刪除資料，請憑追蹤代碼聯絡主辦單位。<br><b>［請在上線前填入：主辦單位名稱與聯絡方式］</b></p><label class="o"><input type="checkbox" id="cs">我已閱讀並同意以上說明</label></div><div class="err" id="err"></div><div class="nav"><span></span><button onclick="next()">開始填寫</button></div></div>`;
+ if(s.k==="base")h+=`<div class="card"><h2>基本資料</h2>
+ <div class="q"><b>年齡層</b>${sel("age",AGE,P.age)}</div><div class="q"><b>性別</b>${sel("gen",GEN,P.gen)}</div>
+ <div class="q"><b>目前有的慢性疾病（可複選）</b>${chk("chronic",CH,P.chronic)}</div>
+ <div class="q"><b>最高學歷</b>${sel("edu",EDU,P.edu)}</div><div class="q"><b>目前工作狀況</b>${sel("emp",EMP,P.emp)}</div>
+ <div class="q"><b>家庭經濟狀況</b>${sel("inc",INC,P.inc)}</div><div class="q"><b>居住情形</b>${sel("liv",LIV,P.liv)}</div>${navh()}</div>`;
+ if(s.k==="stress")h+=`<div class="card"><h2>最近的壓力事件</h2><p class="mu">過去 6 個月內是否遇到以下情況？（可複選）</p>${chk("stress",ST.map(x=>x[0]),P.stress)}${navh()}</div>`;
+ if(s.k==="dom"){const d=s.d,o=d.s.slice(1);h+=`<div class="card"><span class="tag" style="color:${d.c}">${d.g}</span><h2>${d.n}</h2>
+ <div class="q"><b>情境：${d.s[0]}</b>${radio(d.id+"_s",o.map(x=>x[0]),ans[d.id+"_s"])}</div>
+ <div class="q"><b>${d.d}</b>${radio(d.id+"_d",OPT5,ans[d.id+"_d"])}</div>${navh()}</div>`}
+ if(s.k==="pref")h+=`<div class="card"><h2>個性與興趣</h2><p class="mu">讓處方更貼近你。</p>
+ <div class="q"><b>你比較喜歡哪種互動方式？</b>${radio("pers",["熱鬧的大團體，認識很多人","3–8 人的小團體","安靜、一對一或獨自進行"],P.pers)}</div>
+ <div class="q"><b>興趣愛好（可複選）</b>${chk("interest",IN,P.interest)}</div>
+ <div class="q"><b>行動或外出狀況</b>${radio("mob",["可以自在外出","外出不太方便，偏好近距離或在家／電話服務"],P.mob)}</div>${navh("產生我的處方箋")}</div>`;
+ if(s.k==="res")h+=result();
+ $("#app").innerHTML=h;scrollTo(0,0);if(s.k==="res")save();
+}
+const navh=(l="下一步")=>`<div class="err" id="err"></div><div class="nav"><button class="g" onclick="back()">上一步</button><button onclick="next()">${l}</button></div>`;
+function collect(){
+ const s=ST_STEPS[step];
+ if(s.k==="intro"){const c=$("#cs");return !!(c&&c.checked)}
+ if(s.k==="base"){["age","gen","edu","emp","inc","liv"].forEach(k=>{const v=$("#"+k).value;P[k]=v===""?undefined:+v});P.chronic=[...document.querySelectorAll('[data-n=chronic]:checked')].map(e=>e.value);return P.age!==undefined&&P.gen!==undefined&&P.edu!==undefined&&P.inc!==undefined&&P.emp!==undefined&&P.liv!==undefined&&P.chronic.length>0}
+ if(s.k==="stress"){P.stress=[...document.querySelectorAll('[data-n=stress]:checked')].map(e=>e.value);return P.stress.length>0}
+ if(s.k==="dom"){let ok=true;["_s","_d"].forEach(x=>{const e=document.querySelector(`input[name=${s.d.id+x}]:checked`);if(e)ans[s.d.id+x]=+e.value;else ok=false});return ok}
+ if(s.k==="pref"){const e=document.querySelector("input[name=pers]:checked"),m=document.querySelector("input[name=mob]:checked");P.interest=[...document.querySelectorAll('[data-n=interest]:checked')].map(e=>e.value);if(e)P.pers=+e.value;if(m)P.mob=+m.value;return !!(e&&m)}
+ return true;
+}
+function next(){if(!collect()){const e=$("#err");if(e)e.textContent="請完成本頁所有必填項目（同意說明、基本資料與慢性病／壓力事件請至少選一項）。";return}step++;view()}
+function back(){collect();step--;view()}
+function calc(){
+ const adj={},add=(k,v)=>adj[k]=(adj[k]||0)+v;
+ add("econ",[0,0,5,10][P.inc]);if(P.emp>=3)add("econ",4);
+ add("edu",[8,5,2,0,0][P.edu]);
+ const nc=P.chronic.filter(x=>x!=="無慢性病").length;if(nc>=2){add("acc",3);add("life",4);add("self",3)}else if(nc==1)add("life",2);
+ if(P.liv==2){add("lone",5);add("com",4)}
+ if(P.age>=4)add("self",3);
+ ST.forEach(([t,ds])=>{if(P.stress.includes(t))ds.forEach(d=>add(d,4))});
+ const sc={},bd={};
+ D.forEach(d=>{const so=d.s.slice(1)[ans[d.id+"_s"]][1],di=ans[d.id+"_d"],base=(so+di)/8*100;bd[d.id]=[so,di,adj[d.id]||0];sc[d.id]=Math.min(100,Math.round(base+(adj[d.id]||0)))});
+ return {sc,bd};
+}
+function radar(sc){
+ const n=D.length,cx=270,cy=215,R=135,pt=(i,v)=>{const a=-Math.PI/2+2*Math.PI*i/n;return[cx+R*v/100*Math.cos(a),cy+R*v/100*Math.sin(a)]};
+ let g=[25,50,75,100].map(r=>`<polygon points="${D.map((_,i)=>pt(i,r).join(",")).join(" ")}" fill="none" stroke="var(--ln)"/>`).join("");
+ g+=[25,50,75,100].map(r=>`<text x="${cx+3}" y="${cy-R*r/100-2}" font-size="9" fill="var(--mu)">${r}</text>`).join("");
+ g+=D.map((d,i)=>{const[x,y]=pt(i,100),[lx,ly]=pt(i,122),c=Math.cos(-Math.PI/2+2*Math.PI*i/n);return`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--ln)"/><text x="${lx}" y="${ly+4}" font-size="12" fill="var(--tx)" text-anchor="${c>.3?"start":c<-.3?"end":"middle"}">${d.n.slice(0,8)}</text>`}).join("");
+ const poly=D.map((d,i)=>pt(i,sc[d.id]).join(",")).join(" ");
+ g+=`<polygon points="${poly}" fill="var(--ac)" fill-opacity=".28" stroke="var(--ac)" stroke-width="2.5"/>`;
+ g+=D.map((d,i)=>{const[x,y]=pt(i,sc[d.id]);return`<circle cx="${x}" cy="${y}" r="4.5" fill="${d.c}"/><text x="${x}" y="${y-8}" font-size="11" font-weight="700" fill="var(--tx)" text-anchor="middle">${sc[d.id]}</text>`}).join("");
+ return`<div class="ov"><svg viewBox="0 0 540 440" style="width:100%;max-width:620px;display:block;margin:auto" role="img" aria-label="需求雷達圖">${g}</svg></div>`;
+}
+function rank(a,tags){let r=0;const t=a[6].split(",");const pt=["g","s","q"][P.pers];if(t.includes(pt))r+=3;P.interest.forEach(i=>{if(t.includes(i))r+=2});if(P.mob==1&&t.includes("h"))r+=3;if(P.mob==1&&!t.includes("h"))r-=1;return r}
+function result(){
+ const {sc,bd}=calc(),sorted=[...D].sort((a,b)=>sc[b.id]-sc[a.id]),top=sorted.filter(d=>sc[d.id]>=35).slice(0,4);
+ const pers=["外向熱絡型","小圈圈互動型","安靜內斂型"][P.pers];
+ let h=`<div class="card"><h2>你的需求雷達圖</h2><p class="mu">分數 0–100，越高代表越需要支持（低 &lt;25｜輕度 25–49｜中度 50–74｜高 ≥75）。</p>${radar(sc)}
+ <div style="margin-top:10px">${D.map(d=>`<div class="sc"><span>${d.n}</span><div class="t"><i style="width:${sc[d.id]}%;background:${d.c}"></i></div><b>${sc[d.id]}・${LV(sc[d.id])}</b></div>`).join("")}</div>
+ <details class="mu" style="margin-top:10px"><summary>計分方式</summary><p>每個領域 = 情境題（0/1/3/4 分）＋直接詢問需求（0–4 分），合計除以 8 轉為 0–100；再依基本資料（經濟、學歷、慢性病數、獨居、年齡）與壓力事件加權（最多相加至 100）。</p><div class="ov"><table style="font-size:.85rem;border-collapse:collapse;width:100%"><tr><th align="left">領域</th><th>情境</th><th>直接</th><th>加權</th></tr>${D.map(d=>`<tr><td>${d.n}</td><td align="center">${bd[d.id][0]}</td><td align="center">${bd[d.id][1]}</td><td align="center">+${bd[d.id][2]}</td></tr>`).join("")}</table></div></details></div>`;
+ if(sc.ment>=75||sc.com>=80)h+=`<div class="alert"><b>需要有人陪你時，請現在就聯絡：</b>安心專線 <a href="tel:1925" style="color:inherit">1925</a>（24 小時）。若有立即危險請撥 119 或 110。</div>`;
+ h+=`<div class="card rx"><h2>📋 數位社會處方箋</h2><p class="mu">開立日期：${new Date().toLocaleDateString("zh-TW")}｜互動風格：${pers}｜興趣：${P.interest.join("、")||"未填"}</p>`;
+ if(!top.length)h+=`<p>你目前各面向需求都不高，真棒！建議維持規律活動與社交，也可以當志工把支持傳出去。</p>`;
+ else h+=`<p>你最需要優先支持的面向：<b>${top.map(d=>d.n).join("、")}</b>。以下活動已依你的個性與興趣排序。</p>`;
+ top.forEach(d=>{const items=A.filter(a=>a[0]===d.id).sort((a,b)=>rank(b)-rank(a)).slice(0,2);
+  h+=`<h3 style="margin-top:18px;color:${d.c}">${d.n}（${sc[d.id]} 分・${LV(sc[d.id])}）</h3>`;
+  items.forEach(a=>{h+=`<div class="card" style="margin:8px 0"><span class="tag">${a[1]}</span><b>${a[2]}</b><p style="margin:.3em 0">${a[3]}</p><div class="row">${a[4]?`<a class="btn s" href="tel:${a[4].replace(/-/g,"")}">📞 ${a[4]}</a>`:""}${a[5]?`<a class="btn s" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a[5])}">🗺️ 附近地點導航</a>`:""}</div>${a[4]?"":`<div class="mu" style="margin-top:6px">請從地圖找到就近據點後直接致電洽詢。</div>`}</div>`});
+ });
+ h+=`<p class="mu">提醒：電話為全國性專線，請於使用前確認；地圖按鈕會以你裝置的位置搜尋附近據點。建議 4–6 週後重新評估。</p></div>
+ <div id="sv" class="mu noprint"></div><div class="nav noprint"><button class="g" onclick="step=0;saved=false;P={chronic:[],stress:[],interest:[]};ans={};view()">重新填寫</button><button onclick="print()">列印／儲存 PDF</button></div>`;
+ return h;
+}
+const CFG=window.CUSP_CONFIG||{};let saved=false;
+const SITE=(new URLSearchParams(location.search).get("site")||"").slice(0,40);
+const mkCode=()=>{const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let t="";crypto.getRandomValues(new Uint8Array(8)).forEach(x=>t+=c[x%c.length]);return t};
+async function save(){
+ if(saved)return;saved=true;const m=$("#sv");
+ if(!CFG.url||CFG.url.includes("YOUR-PROJECT")){m.textContent="（尚未設定後台連線，結果僅顯示於本機。）";return}
+ const {sc}=calc(),tc=mkCode();
+ try{const r=await fetch(CFG.url+"/rest/v1/responses",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.key,Authorization:"Bearer "+CFG.key,Prefer:"return=minimal"},body:JSON.stringify({track_code:tc,site:SITE,profile:{age:P.age,gen:P.gen,chronic:P.chronic,stress:P.stress,inc:P.inc,edu:P.edu,emp:P.emp,liv:P.liv,pers:P.pers,mob:P.mob,interest:P.interest},answers:ans,scores:sc})});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  m.innerHTML="✔ 已匿名送出。你的追蹤代碼：<b>"+tc+"</b>（請自行記下，日後重測時可使用；我們不知道你是誰）"}
+ catch(e){saved=false;m.textContent="送出失敗，請稍後再試（"+e.message+"）。你仍可列印或截圖保存處方箋。"}
+}
+view();
+</script>
+</body>
+</html>
