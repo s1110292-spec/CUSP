@@ -53,7 +53,7 @@ function render(){const sites=[...new Set(rows.map(r=>r.site))],v=rows.filter(r=
 function notify(id,gm){const s=staff.find(x=>x.user_id===id);if(!s)return;
  if(s.role==="pending"){alert("此人員仍是待核准，請先指派角色並按儲存。");return}
  const url=location.origin+location.pathname,sub="你的 CUSP 後台權限已開通",
- body="您好，\n\n您的 CUSP 後台帳號（"+s.email+"）已開通。\n角色："+RL[s.role]+(s.org?"\n負責 site："+s.org:"")+"\n\n請至以下網址登入：\n"+url+"\n\n如有問題請與我們聯繫。";
+ body="您好，\n\n您的 CUSP 後台帳號（"+s.email+"）已開通。\n角色："+RL[s.role]+(s.org?"\n負責 site："+s.org:"")+"\n\n請至以下網址登入：\n"+url+"\n\n如有問題請與我們聯繫。\n\n（此信為系統自動派送，直接回覆即可聯繫管理員）";
  if(gm)window.open("https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(s.email)+"&su="+encodeURIComponent(sub)+"&body="+encodeURIComponent(body));
  else location.href="mailto:"+s.email+"?subject="+encodeURIComponent(sub)+"&body="+encodeURIComponent(body)}
 async function saveS(id){const {error}=await sb.from("staff").update({role:$("#r_"+id).value,org:$("#o_"+id).value.trim()}).eq("user_id",id);if(error)alert(error.message);await load();render()}
